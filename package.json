@@ -1,16 +1,15 @@
 {
     "name": "my-project",
     "version": "1.0.0",
-    "description": "Проект с HTML, Sass и Node.js сервером",
+    "description": "Проект с HTML и Node.js сервером",
     "main": "server.js",
     "scripts": {
-      "start": "node server.js",
-      "build-css": "sass main.scss styles.css"
+        "start": "node server.js"
     },
-    "dependencies": {},
-    "devDependencies": {
-      "sass": "^1.60.0"
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^4.21.2"
     },
     "author": "Ilia Loviagin",
     "license": "ISC"
-  }
+}

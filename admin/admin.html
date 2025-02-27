@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Админка</title>
+    <script defer src="admin.js"></script>
+</head>
+<body>
+    <h1>Панель администратора</h1>
+
+    <form id="productForm">
+        <input type="text" id="name" placeholder="Название" required>
+        <input type="text" id="description" placeholder="Описание" required>
+        <input type="number" id="price" placeholder="Цена" required>
+        <input type="text" id="category" placeholder="Категории (через запятую)" required>
+        <button type="submit">Добавить товар</button>
+    </form>
+
+    <h2>Список товаров</h2>
+    <div id="productList"></div>
+</body>
+</html>

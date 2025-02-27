@@ -1,46 +1,69 @@
-const http = require('http');
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 
-const port = 3000;
+const app = express();
+const adminApp = express();
+const PORT_MAIN = 8080;
+const PORT_ADMIN = 3000;
+const DATA_FILE = path.join(__dirname, 'products.json');
 
-const server = http.createServer((req, res) => {
-  // Если запрошен корневой URL, отдаем index.html
-  if (req.url === '/') {
-    fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'text/html' });
-        res.end('<h1>Ошибка сервера</h1>');
-      } else {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data);
-      }
-    });
-  } else {
-    // Определяем путь к файлу
-    const filePath = path.join(__dirname, req.url);
-    // Определяем Content-Type
-    let contentType = 'text/plain';
-    if (req.url.endsWith('.css')) contentType = 'text/css';
-    if (req.url.endsWith('.js')) contentType = 'text/javascript';
-    if (req.url.endsWith('.html')) contentType = 'text/html';
+app.use(cors());
+adminApp.use(cors());
+app.use(express.json());
+adminApp.use(express.json());
 
-    // Читаем файл
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        // Если файл не найден, отдаем 404 страницу
-        fs.readFile(path.join(__dirname, '404.html'), (err404, data404) => {
-          res.writeHead(404, { 'Content-Type': 'text/html' });
-          res.end(data404 || '<h1>Страница не найдена (404)</h1>');
-        });
-      } else {
-        res.writeHead(200, { 'Content-Type': contentType });
-        res.end(data);
-      }
-    });
-  }
+const getProducts = () => {
+    try {
+        const data = fs.readFileSync(DATA_FILE);
+        return JSON.parse(data);
+    } catch (error) {
+        return [];
+    }
+};
+
+const saveProducts = (products) => {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(products, null, 2));
+};
+
+app.use(express.static(path.join(__dirname, 'public')));
+adminApp.use(express.static(path.join(__dirname, 'admin')));
+
+app.get('/products', (req, res) => {
+    res.json(getProducts());
 });
 
-server.listen(port, () => {
-  console.log(`Сервер запущен на http://localhost:${port}`);
+adminApp.get('/products', (req, res) => {
+    res.json(getProducts());
 });
+
+adminApp.post('/products', (req, res) => {
+    const products = getProducts();
+    const newProduct = { id: Date.now(), ...req.body };
+    products.push(newProduct);
+    saveProducts(products);
+    res.status(201).json(newProduct);
+});
+
+adminApp.put('/products/:id', (req, res) => {
+    const products = getProducts();
+    const productIndex = products.findIndex(p => p.id == req.params.id);
+    if (productIndex !== -1) {
+        products[productIndex] = { ...products[productIndex], ...req.body };
+        saveProducts(products);
+        res.json(products[productIndex]);
+    } else {
+        res.status(404).json({ message: 'Product not found' });
+    }
+});
+
+adminApp.delete('/products/:id', (req, res) => {
+    let products = getProducts();
+    products = products.filter(p => p.id != req.params.id);
+    saveProducts(products);
+    res.json({ message: 'Product deleted' });
+});
+
+app.listen(PORT_MAIN, () => console.log(`Каталог работает на http://localhost:${PORT_MAIN}`));
+adminApp.listen(PORT_ADMIN, () => console.log(`Админка работает на http://localhost:${PORT_ADMIN}`));
