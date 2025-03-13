@@ -2,12 +2,24 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const { graphqlHTTP } = require('express-graphql');
+const { schema, root } = require('./schema');
+const http = require('http');
+const ChatServer = require('./chat-server');
 
 const app = express();
 const adminApp = express();
+
+// Создаем HTTP серверы
+const mainServer = http.createServer(app);
+const adminServer = http.createServer(adminApp);
+
 const PORT_MAIN = 8080;
 const PORT_ADMIN = 3000;
 const DATA_FILE = path.join(__dirname, 'products.json');
+
+// Инициализируем один общий чат-сервер на админском порту
+const chatServer = new ChatServer(adminServer);
 
 app.use(cors());
 adminApp.use(cors());
@@ -30,6 +42,21 @@ const saveProducts = (products) => {
 app.use(express.static(path.join(__dirname, 'public')));
 adminApp.use(express.static(path.join(__dirname, 'admin')));
 
+// GraphQL endpoint для основного приложения
+app.use('/graphql', graphqlHTTP({
+    schema: schema,
+    rootValue: root,
+    graphiql: true // Включаем GraphiQL интерфейс для тестирования
+}));
+
+// GraphQL endpoint для админки
+adminApp.use('/graphql', graphqlHTTP({
+    schema: schema,
+    rootValue: root,
+    graphiql: true
+}));
+
+// REST endpoints (оставляем для обратной совместимости)
 app.get('/products', (req, res) => {
     res.json(getProducts());
 });
@@ -75,5 +102,6 @@ adminApp.delete('/products/:id', (req, res) => {
     res.json({ message: 'Product deleted' });
 });
 
-app.listen(PORT_MAIN, () => console.log(`Каталог работает на http://localhost:${PORT_MAIN}`));
-adminApp.listen(PORT_ADMIN, () => console.log(`Админка работает на http://localhost:${PORT_ADMIN}`));
+// Запускаем HTTP серверы
+mainServer.listen(PORT_MAIN, () => console.log(`Каталог работает на http://localhost:${PORT_MAIN}`));
+adminServer.listen(PORT_ADMIN, () => console.log(`Админка работает на http://localhost:${PORT_ADMIN}`));
