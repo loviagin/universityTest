@@ -12,7 +12,7 @@
     "id": 2,
     "name": "Товар 2",
     "description": "Описание 2",
-    "price": 1000,
+    "price": "1056",
     "category": [
       "Категория 2"
     ]
@@ -33,15 +33,6 @@
     "price": 2500,
     "category": [
       "Категория 2"
-    ]
-  },
-  {
-    "id": 1740662779603,
-    "name": "Hello",
-    "description": "ura",
-    "price": "1222",
-    "category": [
-      "Ca1"
     ]
   }
 ]

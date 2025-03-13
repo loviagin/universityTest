@@ -38,6 +38,16 @@ adminApp.get('/products', (req, res) => {
     res.json(getProducts());
 });
 
+adminApp.get('/products/:id', (req, res) => {
+    const products = getProducts();
+    const product = products.find(p => p.id == req.params.id);
+    if (product) {
+        res.json(product);
+    } else {
+        res.status(404).json({ message: 'Product not found' });
+    }
+});
+
 adminApp.post('/products', (req, res) => {
     const products = getProducts();
     const newProduct = { id: Date.now(), ...req.body };
