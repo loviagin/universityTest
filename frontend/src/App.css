@@ -1,0 +1,29 @@
+/* frontend/src/App.css */
+.app {
+  font-family: Arial, sans-serif;
+  background-color: #ffffff;
+  color: #000000;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.app.dark {
+  background-color: #333333;
+  color: #ffffff;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+input[type="text"] {
+  padding: 5px;
+  font-size: 16px;
+}
+
+button {
+  margin-left: 5px;
+  padding: 5px 10px;
+}
