@@ -1,107 +1,64 @@
+// Импорт необходимых модулей
 const express = require('express');
-const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const bodyParser = require('body-parser');
 const path = require('path');
-const cors = require('cors');
-const { graphqlHTTP } = require('express-graphql');
-const { schema, root } = require('./schema');
-const http = require('http');
-const ChatServer = require('./chat-server');
 
+// Инициализация приложения
 const app = express();
-const adminApp = express();
+app.use(bodyParser.json());
 
-// Создаем HTTP серверы
-const mainServer = http.createServer(app);
-const adminServer = http.createServer(adminApp);
+// Определение маршрута для корневого пути, который отправляет index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-const PORT_MAIN = 8080;
-const PORT_ADMIN = 3000;
-const DATA_FILE = path.join(__dirname, 'products.json');
+const SECRET_KEY = 'KKOfijew9fh98fh9h8fj2w0dj2fj0r9wckds'; // Секрет для подписи JWT
+const users = []; // Массив для хранения пользователей
 
-// Инициализируем один общий чат-сервер на админском порту
-const chatServer = new ChatServer(adminServer);
-
-app.use(cors());
-adminApp.use(cors());
-app.use(express.json());
-adminApp.use(express.json());
-
-const getProducts = () => {
-    try {
-        const data = fs.readFileSync(DATA_FILE);
-        return JSON.parse(data);
-    } catch (error) {
-        return [];
+// Middleware для проверки JWT токена
+function verifyToken(req, res, next) {
+  const token = req.headers['authorization'];
+  if (!token) {
+    return res.status(401).json({ message: 'Токен не предоставлен' });
+  }
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: 'Неверный токен' });
     }
-};
+    req.user = decoded;
+    next();
+  });
+}
 
-const saveProducts = (products) => {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(products, null, 2));
-};
-
-app.use(express.static(path.join(__dirname, 'public')));
-adminApp.use(express.static(path.join(__dirname, 'admin')));
-
-// GraphQL endpoint для основного приложения
-app.use('/graphql', graphqlHTTP({
-    schema: schema,
-    rootValue: root,
-    graphiql: true // Включаем GraphiQL интерфейс для тестирования
-}));
-
-// GraphQL endpoint для админки
-adminApp.use('/graphql', graphqlHTTP({
-    schema: schema,
-    rootValue: root,
-    graphiql: true
-}));
-
-// REST endpoints (оставляем для обратной совместимости)
-app.get('/products', (req, res) => {
-    res.json(getProducts());
+// Маршрут регистрации
+app.post('/register', (req, res) => {
+  const { username, password } = req.body;
+  const userExists = users.find(u => u.username === username);
+  if (userExists) {
+    return res.status(400).json({ message: 'Пользователь уже существует' });
+  }
+  users.push({ username, password });
+  res.json({ message: 'Пользователь успешно зарегистрирован' });
 });
 
-adminApp.get('/products', (req, res) => {
-    res.json(getProducts());
+// Маршрут входа
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  const user = users.find(u => u.username === username && u.password === password);
+  if (!user) {
+    return res.status(401).json({ message: 'Неверные учетные данные' });
+  }
+  // Генерация JWT токена
+  const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
+  res.json({ token });
 });
 
-adminApp.get('/products/:id', (req, res) => {
-    const products = getProducts();
-    const product = products.find(p => p.id == req.params.id);
-    if (product) {
-        res.json(product);
-    } else {
-        res.status(404).json({ message: 'Product not found' });
-    }
+// Защищённый маршрут
+app.get('/protected', verifyToken, (req, res) => {
+  res.json({ message: 'Доступ к защищенным данным получен', user: req.user });
 });
 
-adminApp.post('/products', (req, res) => {
-    const products = getProducts();
-    const newProduct = { id: Date.now(), ...req.body };
-    products.push(newProduct);
-    saveProducts(products);
-    res.status(201).json(newProduct);
+app.listen(3000, () => {
+  console.log('Сервер запущен на порту 3000');
 });
-
-adminApp.put('/products/:id', (req, res) => {
-    const products = getProducts();
-    const productIndex = products.findIndex(p => p.id == req.params.id);
-    if (productIndex !== -1) {
-        products[productIndex] = { ...products[productIndex], ...req.body };
-        saveProducts(products);
-        res.json(products[productIndex]);
-    } else {
-        res.status(404).json({ message: 'Product not found' });
-    }
-});
-
-adminApp.delete('/products/:id', (req, res) => {
-    let products = getProducts();
-    products = products.filter(p => p.id != req.params.id);
-    saveProducts(products);
-    res.json({ message: 'Product deleted' });
-});
-
-// Запускаем HTTP серверы
-mainServer.listen(PORT_MAIN, () => console.log(`Каталог работает на http://localhost:${PORT_MAIN}`));
-adminServer.listen(PORT_ADMIN, () => console.log(`Админка работает на http://localhost:${PORT_ADMIN}`));

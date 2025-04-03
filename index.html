@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>JWT Аутентификация</title>
+</head>
+<body>
+  <h2>Регистрация</h2>
+  <form id="register-form">
+    <input type="text" id="reg-username" placeholder="Имя пользователя" required>
+    <input type="password" id="reg-password" placeholder="Пароль" required>
+    <button type="submit">Зарегистрироваться</button>
+  </form>
+
+  <h2>Вход</h2>
+  <form id="login-form">
+    <input type="text" id="login-username" placeholder="Имя пользователя" required>
+    <input type="password" id="login-password" placeholder="Пароль" required>
+    <button type="submit">Войти</button>
+  </form>
+
+  <h2>Доступ к защищенным данным</h2>
+  <button id="get-protected">Получить данные</button>
+  
+  <pre id="result"></pre>
+
+  <script>
+    let token = '';
+
+    // Регистрация
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('reg-username').value;
+      const password = document.getElementById('reg-password').value;
+      
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    });
+
+    // Вход
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+      
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if(data.token) {
+        token = data.token;
+      }
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    });
+
+    // Запрос защищенных данных
+    document.getElementById('get-protected').addEventListener('click', async () => {
+      const res = await fetch('/protected', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        }
+      });
+      const data = await res.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
