@@ -47,13 +47,13 @@ universitytest/
    git clone https://github.com/loviagin/universityTest.git
    cd universityTest
    ```
-	2.	Установите зависимости:
+2.	Установите зависимости:
 
 ```
 npm install
 ```
 
-	3.	Запустите сервер:
+3.	Запустите сервер:
 ```
 node server.js
 ```
