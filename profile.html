@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Личный кабинет</title>
+    <style>
+        body.light { background: #fff; color: #000; }
+        body.dark { background: #333; color: #fff; }
+        button { margin: 10px; padding: 10px; }
+        #dataOutput { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Личный кабинет</h1>
+    <!-- Блок для приветствия пользователя -->
+    <div id="userInfo">Добро пожаловать, пользователь!</div>
+    
+    <!-- Кнопка для получения данных с маршрута /data -->
+    <button id="getDataButton">Получить данные</button>
+    
+    <!-- Блок для отображения полученных данных -->
+    <div id="dataOutput">Данные не загружены</div>
+    
+    <!-- Кнопка для выхода из системы -->
+    <button id="logoutButton">Выход</button>
+    
+    <!-- Кнопка переключения темы -->
+    <button id="toggleTheme">Переключить тему</button>
+    
+    <script>
+        // Переключение темы с сохранением в localStorage
+        (function() {
+            const body = document.body;
+            function applyTheme(theme) {
+                body.classList.remove('light', 'dark');
+                body.classList.add(theme);
+                localStorage.setItem('theme', theme);
+            }
+            const storedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(storedTheme);
+            document.getElementById('toggleTheme').addEventListener('click', () => {
+                const newTheme = body.classList.contains('light') ? 'dark' : 'light';
+                applyTheme(newTheme);
+            });
+        })();
+        
+        // Функция для получения данных с маршрута /data
+        async function fetchData() {
+            try {
+                const response = await fetch('/data');
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки данных');
+                }
+                const result = await response.json();
+                document.getElementById('dataOutput').innerText = 
+                    JSON.stringify(result.data, null, 2) + (result.cached ? " (кэш)" : " (новые данные)");
+            } catch (err) {
+                document.getElementById('dataOutput').innerText = err.message;
+            }
+        }
+        document.getElementById('getDataButton').addEventListener('click', fetchData);
+        
+        // Функция для выхода из системы (POST /logout)
+        async function logout() {
+            try {
+                const response = await fetch('/logout', { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error('Ошибка выхода');
+                }
+                const result = await response.json();
+                alert(result.message);
+                // Перенаправление на главную страницу
+                window.location.href = '/';
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+        document.getElementById('logoutButton').addEventListener('click', logout);
+    </script>
+</body>
+</html>

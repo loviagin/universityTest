@@ -1,64 +1,125 @@
-// Импорт необходимых модулей
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const bodyParser = require('body-parser');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
+const fs = require('fs');
 const path = require('path');
 
-// Инициализация приложения
 const app = express();
-app.use(bodyParser.json());
+const PORT = 3000;
 
-// Определение маршрута для корневого пути, который отправляет index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Включаем парсинг JSON в теле запросов
+app.use(express.json());
 
-const SECRET_KEY = 'KKOfijew9fh98fh9h8fj2w0dj2fj0r9wckds'; // Секрет для подписи JWT
-const users = []; // Массив для хранения пользователей
-
-// Middleware для проверки JWT токена
-function verifyToken(req, res, next) {
-  const token = req.headers['authorization'];
-  if (!token) {
-    return res.status(401).json({ message: 'Токен не предоставлен' });
-  }
-  jwt.verify(token, SECRET_KEY, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ message: 'Неверный токен' });
+// Настройка сессий с соответствующими флагами для cookies
+app.use(session({
+    secret: 'jIHuhfw9f8wefjicnsdubcuisdihidw9ey8hu9ch', // замените на сложное значение
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax'
     }
-    req.user = decoded;
-    next();
-  });
-}
+}));
 
-// Маршрут регистрации
-app.post('/register', (req, res) => {
-  const { username, password } = req.body;
-  const userExists = users.find(u => u.username === username);
-  if (userExists) {
-    return res.status(400).json({ message: 'Пользователь уже существует' });
-  }
-  users.push({ username, password });
-  res.json({ message: 'Пользователь успешно зарегистрирован' });
+const users = {};
+
+
+// Middleware для проверки наличия сессии (защищенный маршрут)
+const authMiddleware = (req, res, next) => {
+    if (req.session && req.session.user) {
+        next();
+    } else {
+        // Редирект на / при отсутствии сессии
+        res.redirect('/');
+    }
+};
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Маршрут входа
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = users.find(u => u.username === username && u.password === password);
-  if (!user) {
-    return res.status(401).json({ message: 'Неверные учетные данные' });
-  }
-  // Генерация JWT токена
-  const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
-  res.json({ token });
+app.get('/profile', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'profile.html'));
 });
 
-// Защищённый маршрут
-app.get('/protected', verifyToken, (req, res) => {
-  res.json({ message: 'Доступ к защищенным данным получен', user: req.user });
+// --- Роуты бэкенда ---
+
+// POST /register – регистрация (логин + пароль)
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Необходимо указать логин и пароль' });
+    }
+    if (users[username]) {
+        return res.status(400).json({ message: 'Пользователь уже существует' });
+    }
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        users[username] = { username, password: hashedPassword };
+        res.status(201).json({ message: 'Пользователь зарегистрирован' });
+    } catch (err) {
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
 });
 
-app.listen(3000, () => {
-  console.log('Сервер запущен на порту 3000');
+// POST /login – вход (создание сессии)
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    const user = users[username];
+    if (!user) {
+        return res.status(400).json({ message: 'Неверный логин или пароль' });
+    }
+    try {
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
+            return res.status(400).json({ message: 'Неверный логин или пароль' });
+        }
+        // Создаем сессию
+        req.session.user = { username };
+        res.json({ message: 'Вход выполнен успешно' });
+    } catch (err) {
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+});
+
+// POST /logout – выход (удаление сессии)
+app.post('/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            return res.status(500).json({ message: 'Не удалось выйти' });
+        }
+        res.json({ message: 'Вы вышли из системы' });
+    });
+});
+
+// GET /data – данные с кэшированием (файловый кэш на 1 минуту)
+const CACHE_FILE = path.join(__dirname, 'dataCache.json');
+const CACHE_DURATION = 60 * 1000; // 1 минута в миллисекундах
+
+app.get('/data', (req, res) => {
+    fs.stat(CACHE_FILE, (err, stats) => {
+        // Если файл существует и кэш не устарел
+        if (!err && (Date.now() - stats.mtimeMs < CACHE_DURATION)) {
+            fs.readFile(CACHE_FILE, 'utf8', (readErr, data) => {
+                if (readErr) {
+                    return res.status(500).json({ message: 'Ошибка чтения кэша' });
+                }
+                res.json({ data: JSON.parse(data), cached: true });
+            });
+        } else {
+            // Генерируем новые данные
+            const newData = {
+                time: new Date().toISOString(),
+                info: 'Новые данные сгенерированы сервером'
+            };
+            fs.writeFile(CACHE_FILE, JSON.stringify(newData), (writeErr) => {
+                if (writeErr) console.error('Ошибка записи кэша:', writeErr);
+                res.json({ data: newData, cached: false });
+            });
+        }
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`Сервер запущен на  http://localhost:${PORT}`);
 });

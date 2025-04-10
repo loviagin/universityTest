@@ -1,81 +1,94 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>JWT Аутентификация</title>
+    <meta charset="UTF-8">
+    <title>Вход / Регистрация</title>
+    <style>
+      body.light { background: #fff; color: #000; }
+      body.dark { background: #333; color: #fff; }
+    </style>
 </head>
 <body>
-  <h2>Регистрация</h2>
-  <form id="register-form">
-    <input type="text" id="reg-username" placeholder="Имя пользователя" required>
-    <input type="password" id="reg-password" placeholder="Пароль" required>
-    <button type="submit">Зарегистрироваться</button>
-  </form>
+    <h1>Вход / Регистрация</h1>
 
-  <h2>Вход</h2>
-  <form id="login-form">
-    <input type="text" id="login-username" placeholder="Имя пользователя" required>
-    <input type="password" id="login-password" placeholder="Пароль" required>
-    <button type="submit">Войти</button>
-  </form>
+    <section id="authForms">
+        <!-- Форма входа -->
+        <form id="loginForm">
+            <h2>Вход</h2>
+            <input type="text" name="username" placeholder="Имя пользователя" required>
+            <input type="password" name="password" placeholder="Пароль" required>
+            <button type="submit">Войти</button>
+        </form>
 
-  <h2>Доступ к защищенным данным</h2>
-  <button id="get-protected">Получить данные</button>
-  
-  <pre id="result"></pre>
+        <!-- Форма регистрации -->
+        <form id="registerForm">
+            <h2>Регистрация</h2>
+            <input type="text" name="username" placeholder="Имя пользователя" required>
+            <input type="password" name="password" placeholder="Пароль" required>
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+    </section>
 
-  <script>
-    let token = '';
+    <section id="themeSwitcher">
+        <button id="toggleTheme">Переключить тему</button>
+    </section>
 
-    // Регистрация
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('reg-username').value;
-      const password = document.getElementById('reg-password').value;
-      
-      const res = await fetch('/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-    });
-
-    // Вход
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('login-username').value;
-      const password = document.getElementById('login-password').value;
-      
-      const res = await fetch('/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if(data.token) {
-        token = data.token;
-      }
-      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-    });
-
-    // Запрос защищенных данных
-    document.getElementById('get-protected').addEventListener('click', async () => {
-      const res = await fetch('/protected', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token
+    <script>
+        // Функция для отправки POST-запроса
+        async function postData(url, data) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return response.json();
         }
-      });
-      const data = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-    });
-  </script>
+
+        // Обработка отправки формы входа
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password')
+            };
+            const result = await postData('/login', data);
+            if (result.message === 'Вход выполнен успешно') {
+                // Переход на страницу профиля
+                window.location.href = '/profile';
+            } else {
+                alert(result.message);
+            }
+        });
+
+        // Обработка отправки формы регистрации
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password')
+            };
+            const result = await postData('/register', data);
+            alert(result.message);
+        });
+
+        // Переключение темы
+        const body = document.body;
+        function applyTheme(theme) {
+            body.classList.remove('light', 'dark');
+            body.classList.add(theme);
+            localStorage.setItem('theme', theme);
+        }
+
+        // При загрузке страницы применяем сохраненную тему или по умолчанию
+        const storedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(storedTheme);
+
+        document.getElementById('toggleTheme').addEventListener('click', () => {
+            const newTheme = body.classList.contains('light') ? 'dark' : 'light';
+            applyTheme(newTheme);
+        });
+    </script>
 </body>
 </html>
